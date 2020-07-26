@@ -1,0 +1,26 @@
+﻿{
+    "SpamFolderPaths": ["Spam"],
+    "OKCutoffScore": 50,
+    "MoveRules": [
+        { "HeaderText": "@facebookmail.com",        "TargetFolder": "" },
+        { "HeaderText": "joyfolie.com",             "TargetFolder": "Inbox\\0_Janet\\zShopping" },
+        { "HeaderText": "langehair.com",            "TargetFolder": "Inbox\\0_Janet\\zShopping" },
+        { "HeaderText": "musicnotes.com",           "TargetFolder": "Inbox" }
+    ],
+    "WordScoreRules": [
+        { "RegExp": "\<http",            "Score": 5 },
+        { "RegExp": "\\.ru\\/",         "Score": 5 },
+        { "RegExp": "bald",         "Score": 3 },
+        { "RegExp": "contact form from ",           "Score": 100 },
+        { "RegExp": "discount",         "Score": 3 },
+        { "RegExp": "@facebookmail.com",            "Score": 500 }
+    ],
+    "WhiteListTextPatterns": [
+        "begin forwarded message:",
+        "ixl.com"
+    ],
+    "WhiteListHtmlPatterns": [
+        "schemas-microsoft-com:office:word" ,
+        "OwaReferenceAttachments"
+    ]
+}
