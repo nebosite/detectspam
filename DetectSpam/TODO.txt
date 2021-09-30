@@ -1,0 +1,4 @@
+﻿
+
+    [ ] detect spam - remember old headlines and keep counts
+        - later, look at the nearby headlines and turn them into regular expressions

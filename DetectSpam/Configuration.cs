@@ -22,6 +22,7 @@ namespace DetectSpam
     {
         public string[] SpamFolderPaths { get; set; }
         public int OKCutoffScore { get; set; }
+        public string DefaultOutputFolder  { get; set;}
         public MoveListItem[] MoveRules { get; set; }
         public WordScore[] WordScoreRules { get; set; }
         public string[] WhiteListTextPatterns { get; set; }

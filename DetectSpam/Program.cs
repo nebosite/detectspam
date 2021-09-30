@@ -91,6 +91,8 @@ namespace DetectSpam
         /// -------------------------------------------------------------------------------------
         public static void ScanFolder(Outlook.MAPIFolder folder)
         {
+
+            // Count the subjects (repeated subject look like spam)
             var subjects = new Dictionary<string, int>();
             Console.Write("Scanning Subjects ...");
             int count = 0;
@@ -108,47 +110,68 @@ namespace DetectSpam
             }
             Console.WriteLine();
 
+            // Use Move rules to automatically move some messages to other folders
             var moveThese = new Stack<MoveData>();
             foreach (object obj in folder.Items)
             {
                 if (!(obj is Outlook.MailItem)) continue;
                 var item = obj as Outlook.MailItem;
-                if (TryMove(item, moveThese))
-                {
-                    continue;
-                }
-                item.UnRead = false;
-                var status = "na";
-                status = SpamStatus(item, subjects);
-                item.VotingResponse = status;
 
-
-                var subject = item.Subject;
-                Console.WriteLine("[" + status + "] " + subject);
                 try
                 {
-                    item.Close(Outlook.OlInspectorClose.olSave);
+                    if (ApplyMoveRules(item, moveThese))
+                    {
+                        continue;
+                    }
+                    item.UnRead = false;
+                    var status = "na";
+                    status = SpamStatus(item, subjects);
+                    item.VotingResponse = status;
+
+
+                    var subject = item.Subject;
+                    Console.WriteLine("[" + status + "] " + subject);
+
+                    if(!string.IsNullOrEmpty(Configuration.DefaultOutputFolder))
+                    {
+                        moveThese.Push(new MoveData() { MoveTo = Configuration.DefaultOutputFolder, MoveMe = item });
+                    }
                 }
-                catch (Exception e)
+                finally
                 {
-                    PrintError("Error: " + e.Message);
+                    try
+                    {
+                        item.Close(Outlook.OlInspectorClose.olSave);
+                    }
+                    catch (Exception e)
+                    {
+                        PrintError("Error: " + e.Message);
+                    }
                 }
             }
 
             while(moveThese.Count > 0)
             {
                 var moveInfo = moveThese.Pop();
-                if (moveInfo.MoveTo == "")
+                try
                 {
-                    Console.WriteLine("***    DELETING " + moveInfo.MoveMe.Subject);
-                    moveInfo.MoveMe.Delete();
+                    if (moveInfo.MoveTo == "")
+                    {
+                        Console.WriteLine("***    DELETING " + moveInfo.MoveMe.Subject);
+                        moveInfo.MoveMe.Delete();
+                    }
+                    else
+                    {
+                        Console.WriteLine($"***    MOVING to {moveInfo.MoveTo}: " + moveInfo.MoveMe.Subject);
+                        moveInfo.MoveMe.Move(GetFolder(moveInfo.MoveTo));
+                        moveInfo.MoveMe.Close(Outlook.OlInspectorClose.olSave);
+                    }
                 }
-                else
+                catch(Exception e)
                 {
-                    Console.WriteLine($"***    MOVING to {moveInfo.MoveTo}: " + moveInfo.MoveMe.Subject);
-                    moveInfo.MoveMe.Move(GetFolder(moveInfo.MoveTo));
-                    moveInfo.MoveMe.Close(Outlook.OlInspectorClose.olSave);
+                    PrintError("Moving Problem: " + e.Message);
                 }
+
 
             }
         }
@@ -176,20 +199,36 @@ namespace DetectSpam
 
         /// -------------------------------------------------------------------------------------
         /// <summary>
-        /// Try to move this item to another folder (or delete it)
+        /// If this message matched the move rules, add it to the movable list
         /// </summary>
         /// -------------------------------------------------------------------------------------
-        private static bool TryMove(Outlook.MailItem item, Stack<MoveData> moveThese)
+        private static bool ApplyMoveRules(Outlook.MailItem mailItem, Stack<MoveData> moveThese)
         {
             try
             {
-                var searchText = $" {item.SenderEmailAddress} {item.SenderName} {item.Subject} ".ToLower();
+                var recipientText = new StringBuilder();
+                foreach(Outlook.Recipient recipient in mailItem.Recipients)
+                {
+                    recipientText.Append(recipient.Address + " ");
+                }
+                Outlook.PropertyAccessor oPA;
+                string propName = "http://schemas.microsoft.com/mapi/proptag/0x0065001F";
+                oPA = mailItem.PropertyAccessor;
+                string senderMailProperty = oPA.GetProperty(propName).ToString();
 
+                var searchText = $" {mailItem.SenderEmailAddress} {senderMailProperty} {mailItem.SenderName} {mailItem.Subject} {recipientText} ".ToLower();
+
+                Debug.WriteLine("SEARCH: " + searchText);
                 foreach (var moveRule in Configuration.MoveRules)
                 {
                     if (searchText.Contains(moveRule.HeaderText))
                     {
-                        moveThese.Push(new MoveData() { MoveTo = moveRule.TargetFolder, MoveMe = item });
+                        var startIndex = searchText.IndexOf(moveRule.HeaderText) - 10;
+                        var endIndex = startIndex + moveRule.HeaderText.Length + 20;
+                        if (startIndex < 0) startIndex = 0;
+                        if (endIndex >= searchText.Length) endIndex = searchText.Length - 1;
+                        Console.WriteLine($"    Move rule {moveRule.HeaderText} matched on ...{searchText.Substring(startIndex, endIndex-startIndex)}...");
+                        moveThese.Push(new MoveData() { MoveTo = moveRule.TargetFolder, MoveMe = mailItem });
                         return true;
                     }
                 }
@@ -201,40 +240,6 @@ namespace DetectSpam
 
             return false;
         }
-
-
-
-        //private static void WriteData()
-        //{
-        //    var config = new Configuration();
-        //    config.ItemsToMove =
-        //        _folderMoveList
-        //        .Split('\n')
-        //        .Where(i => !string.IsNullOrEmpty(i.Trim()))
-        //        .Select(i =>
-        //        {
-        //            var parts = i.Split(',');
-        //            return new MoveListItem() { HeaderText = parts[0], TargetFolder = parts[1] };
-        //        })
-        //        .ToArray();
-
-        //    config.WordScores =
-        //        _badWordList
-        //        .Split('\n')
-        //        .Where(i => !string.IsNullOrEmpty(i.Trim()))
-        //        .Select(i =>
-        //        {
-        //            var parts = i.Split(',');
-        //            return new WordScore() { RegExp = parts[0], Score = int.Parse(parts[1]) };
-        //        })
-        //        .ToArray();
-
-        //    config.WhiteListTextPatterns = _goodWordList;
-        //    config.WhiteListHtmlPatterns = _goodWordList;
-
-        //    File.WriteAllText("DetectSpam.config", JsonConvert.SerializeObject(config));
-        //}
-
 
 
         // html begins with <div
@@ -382,6 +387,11 @@ namespace DetectSpam
 
         }
 
+        /// -------------------------------------------------------------------------------------
+        /// <summary>
+        /// GetReturnAddressScore
+        /// </summary>
+        /// -------------------------------------------------------------------------------------
         private static double GetReturnAddressScore(Outlook.MailItem item)
         {
             int symbolCount = 0;
