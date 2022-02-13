@@ -6,19 +6,19 @@ using System.Threading.Tasks;
 
 namespace DetectSpam
 {
-    class MoveListItem
+    public class MoveListItem
     {
         public string HeaderText { get; set; }
         public string TargetFolder { get; set; }
     }
 
-    class WordScore
+    public class WordScore
     {
         public string RegExp { get; set; }
         public int Score { get; set; }
     }
 
-    class Configuration
+    public class Configuration
     {
         public string[] SpamFolderPaths { get; set; }
         public int OKCutoffScore { get; set; }
