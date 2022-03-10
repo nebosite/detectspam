@@ -24,12 +24,21 @@ namespace DetectSpam
 
         static void Main(string[] args)
         {
-            
+            var pauseForKeyboard = true;
             //WriteData();  return;
             try
             {
-                if (args.Length == 0) throw new ApplicationException("USAGE: detectspam (configFileName)");
+                if (args.Length == 0) throw new ApplicationException("USAGE: detectspam (configFileName) [options]");
                 var configFileName = args[0];
+                for(int i = 1; i< args.Length; i++)
+                {
+                    var arg = args[i].ToLower().TrimStart(new char[] { '-', '/', '\\' });
+                    switch(arg) 
+                    {
+                        case "scripted": pauseForKeyboard = false; break;
+                    }
+
+                }
                 if(!File.Exists(configFileName)) throw new ApplicationException("Config file does not exist: " + configFileName);
 
                 Configuration = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(configFileName));
@@ -60,7 +69,11 @@ namespace DetectSpam
 
             }
             Console.WriteLine("DONE");
-            Console.Read();
+            if (pauseForKeyboard)
+            {
+                Console.WriteLine("Press a key to exit...");
+                Console.Read();
+            }
         }
 
         /// -------------------------------------------------------------------------------------
