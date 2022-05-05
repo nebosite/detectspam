@@ -9,6 +9,8 @@ namespace DetectSpam
     public class MoveListItem
     {
         public string HeaderText { get; set; }
+        public string HeaderRegex { get; set; }
+        public string SubjectRegex { get; set; }
         public string TargetFolder { get; set; }
     }
 

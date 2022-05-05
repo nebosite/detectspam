@@ -26,6 +26,8 @@ namespace DetectSpam
         {
             var pauseForKeyboard = true;
             //WriteData();  return;
+
+            Console.WriteLine(">>>>>>> DETECTING SPAM <<<<<<<<<<");
             try
             {
                 if (args.Length == 0) throw new ApplicationException("USAGE: detectspam (configFileName) [options]");

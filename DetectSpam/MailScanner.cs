@@ -226,13 +226,17 @@ namespace DetectSpam
                 Debug.WriteLine("SEARCH: " + searchText);
                 foreach (var moveRule in Configuration.MoveRules)
                 {
-                    if (searchText.Contains(moveRule.HeaderText))
+                    if (   (moveRule.HeaderText != null && searchText.Contains(moveRule.HeaderText))
+                        || (moveRule.HeaderRegex != null && Regex.IsMatch(searchText, moveRule.HeaderRegex))
+                        || (moveRule.SubjectRegex != null && Regex.IsMatch(mailItem.Subject, moveRule.SubjectRegex))
+                        )
                     {
-                        var startIndex = searchText.IndexOf(moveRule.HeaderText) - 10;
-                        var endIndex = startIndex + moveRule.HeaderText.Length + 20;
+                        var ruleText = moveRule.HeaderText ?? moveRule.HeaderRegex ?? moveRule.SubjectRegex;
+                        var startIndex = searchText.IndexOf(ruleText) - 10;
+                        var endIndex = startIndex + ruleText.Length + 20;
                         if (startIndex < 0) startIndex = 0;
                         if (endIndex >= searchText.Length) endIndex = searchText.Length - 1;
-                        Console.WriteLine($"    Move rule {moveRule.HeaderText} matched on ...{searchText.Substring(startIndex, endIndex - startIndex)}...");
+                        Console.WriteLine($"    Move rule {ruleText} matched on ...{searchText.Substring(startIndex, endIndex - startIndex)}...");
                         moveThese.Push(new MoveData() { MoveTo = moveRule.TargetFolder, MoveMe = mailItem });
                         return true;
                     }
