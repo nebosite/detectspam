@@ -15,7 +15,8 @@ namespace DetectSpam
         string MailRoot;
         Application _mailApp;
         Configuration Configuration { get; set; }
-        Dictionary<string, int> wordPhraseCounts = new Dictionary<string, int>();
+        Dictionary<string, int> spamPhraseCounts = new Dictionary<string, int>();
+        Dictionary<string, int> nonSpamPhraseCounts = new Dictionary<string, int>();
 
         public MailScanner(Configuration config, Application mailApp, string mailRoot)
         {
@@ -46,6 +47,49 @@ namespace DetectSpam
                 }
             }
             return outputFolder;
+        }
+
+        /// -------------------------------------------------------------------------------------
+        /// <summary>
+        /// Recursively retrieves mail messages under a folder and counts word pharse to mark
+        /// as non-spam
+        /// </summary>
+        /// -------------------------------------------------------------------------------------
+        public void ScanNonSpam(string folderPath)
+        {
+            var folder = GetFolder(folderPath);
+
+            // Count the subjects (repeated subject look like spam)
+            var subjects = new Dictionary<string, int>();
+            Console.WriteLine($"Scanning Non-Spam Phrases in {folderPath} ...");
+
+
+            // Use Move rules to automatically move some messages to other folders
+            var moveThese = new Stack<MoveData>();
+            foreach (object obj in folder.Items)
+            {
+                if (!(obj is Outlook.MailItem)) continue;
+                var mailItem = obj as Outlook.MailItem;
+
+                var recipientText = new StringBuilder();
+                foreach (Outlook.Recipient recipient in mailItem.Recipients)
+                {
+                    recipientText.Append(recipient.Address + " ");
+                }
+                Outlook.PropertyAccessor oPA;
+                string propName = "http://schemas.microsoft.com/mapi/proptag/0x0065001F";
+                oPA = mailItem.PropertyAccessor;
+                string senderMailProperty = oPA.GetProperty(propName).ToString();
+
+                const string PR_TRANSPORT_MESSAGE_HEADERS = "http://schemas.microsoft.com/mapi/proptag/0x007D001E";
+                string header = oPA.GetProperty(PR_TRANSPORT_MESSAGE_HEADERS);
+
+                //var searchText = $" {mailItem.SenderEmailAddress} {senderMailProperty} {mailItem.SenderName} {mailItem.Subject} {recipientText} ".ToLower();
+                var searchText = header.ToLower();
+                analyzeText(searchText, nonSpamPhraseCounts);
+
+
+            }
         }
 
 
@@ -142,7 +186,6 @@ namespace DetectSpam
             }
         }
 
-        List<string[]> _folderMoves;
 
         class MoveData
         {
@@ -155,7 +198,7 @@ namespace DetectSpam
         /// Keep track of words and phrases
         /// </summary>
         /// -------------------------------------------------------------------------------------
-        void analyzeText(string searchText)
+        void analyzeText(string searchText, Dictionary<string, int> phraseCounts)
         {
             var localMap = new Dictionary<string, int>();
             var list = new List<string>();
@@ -181,11 +224,11 @@ namespace DetectSpam
                 {
                     localMap[word] = 1;
 
-                    if(!wordPhraseCounts.ContainsKey(word))
+                    if(!phraseCounts.ContainsKey(word))
                     {
-                        wordPhraseCounts[word] = 0;
+                        phraseCounts[word] = 0;
                     }
-                    wordPhraseCounts[word]++;
+                    phraseCounts[word]++;
                 }
             }
 
@@ -221,14 +264,14 @@ namespace DetectSpam
 
                 //var searchText = $" {mailItem.SenderEmailAddress} {senderMailProperty} {mailItem.SenderName} {mailItem.Subject} {recipientText} ".ToLower();
                 var searchText = header.ToLower();
-                analyzeText(searchText);
+                analyzeText(searchText, spamPhraseCounts);
 
                 Debug.WriteLine("SEARCH: " + searchText);
                 foreach (var moveRule in Configuration.MoveRules)
                 {
                     if (   (moveRule.HeaderText != null && searchText.Contains(moveRule.HeaderText))
-                        || (moveRule.HeaderRegex != null && Regex.IsMatch(searchText, moveRule.HeaderRegex))
-                        || (moveRule.SubjectRegex != null && Regex.IsMatch(mailItem.Subject, moveRule.SubjectRegex))
+                        || (moveRule.HeaderRegex != null && Regex.IsMatch(searchText, moveRule.HeaderRegex, RegexOptions.IgnoreCase))
+                        || (moveRule.SubjectRegex != null && Regex.IsMatch(mailItem.Subject, moveRule.SubjectRegex, RegexOptions.IgnoreCase))
                         )
                     {
                         var ruleText = moveRule.HeaderText ?? moveRule.HeaderRegex ?? moveRule.SubjectRegex;
@@ -476,10 +519,14 @@ namespace DetectSpam
         /// -------------------------------------------------------------------------------------
         public string GetTextResults()
         {
-            var sortedResults = wordPhraseCounts.Keys
-                .Select(k => new KeyItem() { key = k, count = wordPhraseCounts[k] })
+            var sortedResults = spamPhraseCounts.Keys
+                .Select(k => new KeyItem() { key = k, count = spamPhraseCounts[k] })
                 .OrderByDescending((a) => a.count)
-                .Where(i => i.count > 3)
+                .Where(i => 
+                    i.count > 5 
+                    && i.key.Length > 6 
+                    && !nonSpamPhraseCounts.ContainsKey(i.key)
+                )
                 .Select(i => i.key + "," + i.count);
 
             return String.Join("\r\n", sortedResults);

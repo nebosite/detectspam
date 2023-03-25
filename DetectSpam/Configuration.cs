@@ -23,6 +23,7 @@ namespace DetectSpam
     public class Configuration
     {
         public string[] SpamFolderPaths { get; set; }
+        public string[] NotSpamFolderPaths { get; set; }
         public int OKCutoffScore { get; set; }
         public string DefaultOutputFolder  { get; set;}
         public MoveListItem[] MoveRules { get; set; }

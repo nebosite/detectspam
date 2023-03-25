@@ -1,4 +1,5 @@
 ﻿
+    [ ] DetectSpam:  Create a "good" folder and when showing keywords, exclude keywords that also appear in the good folder
 
     [ ] detect spam - remember old headlines and keep counts
         - later, look at the nearby headlines and turn them into regular expressions
