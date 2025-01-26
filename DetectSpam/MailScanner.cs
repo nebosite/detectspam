@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.Office.Interop.Outlook;
 using Application = Microsoft.Office.Interop.Outlook.Application;
 using Outlook = Microsoft.Office.Interop.Outlook;
 
@@ -92,6 +93,22 @@ namespace DetectSpam
             }
         }
 
+        /// -------------------------------------------------------------------------------------
+        /// <summary>
+        /// Recursively retrieves all mail messages under the starting folder
+        /// </summary>
+        /// -------------------------------------------------------------------------------------
+        public void ProcessFolder(string folderPath, Action<Outlook.MailItem> processItem)
+        {
+            var folder = GetFolder(folderPath);
+            foreach (object obj in folder.Items)
+            {
+                if (!(obj is Outlook.MailItem)) continue;
+                var item = obj as Outlook.MailItem;
+                processItem(item);
+            }
+        }
+
 
         /// -------------------------------------------------------------------------------------
         /// <summary>
@@ -153,7 +170,7 @@ namespace DetectSpam
                     {
                         item.Close(Outlook.OlInspectorClose.olSave);
                     }
-                    catch (Exception e)
+                    catch (System.Exception e)
                     {
                         PrintError("Error: " + e.Message);
                     }
@@ -177,7 +194,7 @@ namespace DetectSpam
                         moveInfo.MoveMe.Close(Outlook.OlInspectorClose.olSave);
                     }
                 }
-                catch(Exception e)
+                catch(System.Exception e)
                 {
                     PrintError("Moving Problem: " + e.Message);
                 }
@@ -285,7 +302,7 @@ namespace DetectSpam
                     }
                 }
             }
-            catch (Exception e)
+            catch (System.Exception e)
             {
                 PrintError("Error: " + e.Message);
             }
